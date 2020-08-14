@@ -2,7 +2,7 @@
 CC        := gcc
 CCFLAG    := -Wall
 DBGFLAG   := -g
-LDFLAG    := -lstdc++ `PKG_CONFIG_PATH="$$HOME/ffmpeg_build/lib/pkgconfig" pkg-config --cflags --libs libavcodec`
+LDFLAG    := -lstdc++ `PKG_CONFIG_PATH="$$HOME/ffmpeg_build/lib/pkgconfig" pkg-config --cflags --libs libavcodec libavformat libswresample libavutil`
 CCOBJFLAG := $(CCFLAG) -c
 
 # path macros
