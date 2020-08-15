@@ -1,16 +1,12 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
 #include "audio-decode.h"
 
-static const int INFBUF_SIZE = 4096;
-static const int AUDIO_INBUF_SIZE = 20480;
-static const int AUDIO_REFILL_THRESH = 4096;
-static const int FF_INPUT_BUFFER_PADDING_SIZE = 32;
-
 // TODO: figure out best way to communicate errors for wasm
+// TODO: handle bindings/types for wasm
 // TODO: better error handling (make sure to free resources on error)
-int decode_audio(std::string& path, float sample_rate, float start, float duration) {
-
+int decode_audio(std::string& path, float sample_rate, float start = 0, float duration = -1) {
   std::cout << "Analyzing file..." << std::endl;
 
   // get audio stream
@@ -88,11 +84,26 @@ int decode_audio(std::string& path, float sample_rate, float start, float durati
   int sample_size = av_get_bytes_per_sample(codec->sample_fmt);
   std::cout << "bytes per sample: " << sample_size << std::endl;
   std::cout << "channels: " << codec->channels << std::endl;
+  std::cout << "frame size: " << codec->frame_size << std::endl;
 
-  // TODO: figure out how to begin at 'start' offset, and how many frames to iterate for 'duration'
+  float duration_seconds = format->duration / (float) AV_TIME_BASE;
+  std::cout << "duration: " << duration_seconds << std::endl;
+
+  int sample_count = std::ceil(duration_seconds * codec->sample_rate);
+  std::cout << "estimated sample count: " << sample_count << std::endl;
+
+  // seek to start timestamp
+  int64_t start_timestamp = av_rescale(start, stream->time_base.den, stream->time_base.num);
+  int64_t max_timestamp = av_rescale(duration_seconds, stream->time_base.den, stream->time_base.num);
+  if (av_seek_frame(format, stream_index, std::min(start_timestamp, max_timestamp), AVSEEK_FLAG_ANY) < 0) {
+    std::cerr << "Failed to seek to start time: " << start << std::endl;
+    return -1;
+  }
+
   std::vector<double> samples;
   int status;
-  while (av_read_frame(format, packet) >= 0) {
+  int samples_to_decode = std::ceil(duration * codec->sample_rate);
+  while ((status = av_read_frame(format, packet)) >= 0) {
     if (packet->stream_index == stream_index) {
       // send compressed packet to decoder
       status = avcodec_send_packet(codec, packet);
@@ -103,8 +114,6 @@ int decode_audio(std::string& path, float sample_rate, float start, float durati
         return -1;
       }
 
-      std::cout << "Sending packet" << std::endl;
-
       // receive uncompressed frame from decoder
       while ((status = avcodec_receive_frame(codec, frame)) >= 0) {
         if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) {
@@ -113,8 +122,6 @@ int decode_audio(std::string& path, float sample_rate, float start, float durati
           std::cerr << "Failed to decode frame" << std::endl;
           return -1;
         }
-
-        std::cout << "Receiving packet: " << frame->nb_samples << " samples" << std::endl;
 
         // resample and store samples
         double* buffer;
@@ -130,9 +137,15 @@ int decode_audio(std::string& path, float sample_rate, float start, float durati
 
         av_freep(&buffer);
       }
+
+      // stop decoding if necessary
+      if (samples_to_decode >= 0 && (int) samples.size() >= samples_to_decode) {
+        break;
+      }
     }
   }
 
+  std::cout << "status: " << status << std::endl;
   std::cout << "Stored sample count: " << samples.size() << std::endl;
   std::cout << "Success!" << std::endl;
 
