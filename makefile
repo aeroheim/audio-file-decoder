@@ -1,8 +1,8 @@
 # tool macros
-CC        := gcc
-CCFLAG    := -Wall
+CC        := emcc
+CCFLAG    := -Wall -s WASM=1
 DBGFLAG   := -g
-LDFLAG    := -lstdc++ `PKG_CONFIG_PATH="$$HOME/ffmpeg_build/lib/pkgconfig" pkg-config --cflags --libs libavcodec libavformat libswresample libavutil`
+LDFLAG    := `PKG_CONFIG_PATH="$$HOME/ffmpeg_build/lib/pkgconfig" pkg-config --cflags --libs libavcodec libavformat libswresample libavutil`
 CCOBJFLAG := $(CCFLAG) -c
 
 # path macros
@@ -12,10 +12,10 @@ SRC_PATH := src
 DBG_PATH := debug
 
 # compile macros
-TARGET_NAME := main
+TARGET_NAME := main.html
 TARGET := $(BIN_PATH)/$(TARGET_NAME)
 TARGET_DEBUG := $(DBG_PATH)/$(TARGET_NAME)
-MAIN_SRC := $(SRC_PATH)/$(TARGET_NAME).cpp
+MAIN_SRC := $(SRC_PATH)/main.cpp
 
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.c*)))

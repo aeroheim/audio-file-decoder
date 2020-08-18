@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 #ifdef __cplusplus
 extern "C"
 {
@@ -9,4 +10,4 @@ extern "C"
 }
 #endif
 
-int decode_audio(std::string& path, float sample_rate, float start, float duration);
+int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sample_rate, float start, float duration);

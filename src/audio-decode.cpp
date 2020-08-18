@@ -1,12 +1,12 @@
 #include <iostream>
-#include <vector>
 #include <cmath>
 #include "audio-decode.h"
 
 // TODO: figure out best way to communicate errors for wasm
 // TODO: handle bindings/types for wasm
+// TODO: for array, might need to pass in length as well
 // TODO: better error handling (make sure to free resources on error)
-int decode_audio(std::string& path, float sample_rate, float start = 0, float duration = -1) {
+int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sample_rate, float start = 0, float duration = -1) {
   std::cout << "Analyzing file..." << std::endl;
 
   // get audio stream
@@ -64,7 +64,7 @@ int decode_audio(std::string& path, float sample_rate, float start = 0, float du
   av_opt_set_int(swr, "in_sample_rate", codec->sample_rate, 0);
   av_opt_set_int(swr, "out_sample_rate", sample_rate, 0);
   av_opt_set_sample_fmt(swr, "in_sample_fmt", codec->sample_fmt, 0);
-  av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_DBL, 0);
+  av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
   swr_init(swr);
   if (!swr_is_initialized(swr)) {
     std::cerr << "Failed to resample file: " << path << std::endl;
@@ -100,7 +100,6 @@ int decode_audio(std::string& path, float sample_rate, float start = 0, float du
     return -1;
   }
 
-  std::vector<double> samples;
   int status;
   int samples_to_decode = std::ceil(duration * codec->sample_rate);
   while ((status = av_read_frame(format, packet)) >= 0) {
@@ -124,30 +123,28 @@ int decode_audio(std::string& path, float sample_rate, float start = 0, float du
         }
 
         // resample and store samples
-        double* buffer;
-        av_samples_alloc((uint8_t**) &buffer, nullptr, 1, frame->nb_samples, AV_SAMPLE_FMT_DBL, 0);
+        float* buffer;
+        av_samples_alloc((uint8_t**) &buffer, nullptr, 1, frame->nb_samples, AV_SAMPLE_FMT_FLT, 0);
         if (swr_convert(swr, (uint8_t**) &buffer, frame->nb_samples, (const uint8_t**) frame->data, frame->nb_samples) < 0) {
           std::cerr << "Failed to resample frame" << std::endl;
           return -1;
         }
 
         for (int i = 0; i < frame->nb_samples; i++) {
-          samples.push_back(buffer[i]);
+          sample_buffer.push_back(buffer[i]);
         }
 
         av_freep(&buffer);
       }
 
       // stop decoding if necessary
-      if (samples_to_decode >= 0 && (int) samples.size() >= samples_to_decode) {
+      if (samples_to_decode >= 0 && (int) sample_buffer.size() >= samples_to_decode) {
         break;
       }
     }
   }
 
-  std::cout << "status: " << status << std::endl;
-  std::cout << "Stored sample count: " << samples.size() << std::endl;
-  std::cout << "Success!" << std::endl;
+  std::cout << "Stored sample count: " << sample_buffer.size() << std::endl;
 
   // cleanup
   av_packet_free(&packet);
@@ -155,6 +152,8 @@ int decode_audio(std::string& path, float sample_rate, float start = 0, float du
   swr_free(&swr);
   avcodec_close(codec);
   avformat_free_context(format);
+
+  std::cout << "Success!" << std::endl;
 
   // success
   return 0;
