@@ -1,5 +1,3 @@
-#include <string>
-#include <vector>
 #ifdef __cplusplus
 extern "C"
 {
@@ -9,5 +7,13 @@ extern "C"
   #include <libswresample/swresample.h>
 }
 #endif
+#include <string>
+#include <vector>
 
-int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sample_rate, float start, float duration);
+struct DecodeAudioResult {
+  int status;
+  std::string error;
+  std::vector<float> samples;
+};
+
+DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float start, float duration);

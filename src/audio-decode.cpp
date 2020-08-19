@@ -1,55 +1,59 @@
+#include "audio-decode.h"
+#include <emscripten/bind.h>
 #include <iostream>
 #include <cmath>
-#include "audio-decode.h"
 
-// TODO: figure out best way to communicate errors for wasm
-// TODO: handle bindings/types for wasm
 // TODO: for array, might need to pass in length as well
 // TODO: better error handling (make sure to free resources on error)
-int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sample_rate, float start = 0, float duration = -1) {
+DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float start = 0, float duration = -1) {
+  DecodeAudioResult result = { 0, "", std::vector<float>() };
+
   std::cout << "Analyzing file..." << std::endl;
 
   // get audio stream
   AVFormatContext* format = avformat_alloc_context();
-  if (avformat_open_input(&format, path.c_str(), nullptr, nullptr) != 0) {
-    std::cerr << "Failed to open file: " << path << std::endl;
-    return -1;
+  if ((result.status = avformat_open_input(&format, path.c_str(), nullptr, nullptr)) != 0) {
+    result.error = "Failed to open file: " + path;
+    return result;
   }
-  if (avformat_find_stream_info(format, nullptr) < 0) {
-    std::cerr << "Failed to get metadata from file: " << path << std::endl;
-    return -1;
+  if ((result.status = avformat_find_stream_info(format, nullptr)) < 0) {
+    result.error = "Failed to get metadata from file: " + path;
+    return result;
   }
-  int stream_index = -1;
+  int audio_stream_index = -1;
   for (unsigned int i = 0; i < format->nb_streams; i++) {
     if (format->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-      stream_index = i;
+      audio_stream_index = i;
       break;
     }
   }
-  if (stream_index == -1) {
-    std::cerr << "Failed to get audio stream from file: " << path << std::endl;
-    return -1;
+  if (audio_stream_index == -1) {
+    result.status = -1;
+    result.error = "Failed to get audio stream from file: " + path;
+    return result;
   }
-  AVStream* stream = format->streams[stream_index];
+  AVStream* stream = format->streams[audio_stream_index];
 
   // get and initialize decoder
   AVCodec* decoder = avcodec_find_decoder(stream->codecpar->codec_id);
   if (!decoder) {
-    std::cerr << "Failed to decode file: " << path << std::endl;
-    return -1;
+    result.status = -1;
+    result.error = "Failed to decode file: " + path;
+    return result;
   }
   AVCodecContext* codec = avcodec_alloc_context3(decoder);
   if (!codec) {
-    std::cerr << "Failed to allocate decoder memory for file: " << path << std::endl;
-    return -1;
+    result.status = -1;
+    result.error = "Failed to allocate decoder memory for file: " + path;
+    return result;
   }
-  if (avcodec_parameters_to_context(codec, stream->codecpar) < 0) {
-    std::cerr << "Failed to initialize decoder for file: " << path << std::endl;
-    return -1;
+  if ((result.status = avcodec_parameters_to_context(codec, stream->codecpar)) < 0) {
+    result.error = "Failed to initialize decoder for file: " + path;
+    return result;
   }
-  if (avcodec_open2(codec, decoder, nullptr) < 0) {
-    std::cerr << "Failed to open decoder for file: " << path << std::endl;
-    return -1;
+  if ((result.status = avcodec_open2(codec, decoder, nullptr)) < 0) {
+    result.error = "Failed to open decoder for file: " + path;
+    return result;
   }
 
   // TODO: consider what codec format you want (e.g s16 vs f64)
@@ -67,8 +71,9 @@ int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sampl
   av_opt_set_sample_fmt(swr, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
   swr_init(swr);
   if (!swr_is_initialized(swr)) {
-    std::cerr << "Failed to resample file: " << path << std::endl;
-    return -1;
+    result.status = -1;
+    result.error = "Failed to initialize resampler for file: " + path;
+    return result;
   }
 
   std::cout << "Decoding audio..." << std::endl;
@@ -77,40 +82,41 @@ int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sampl
   AVPacket* packet = av_packet_alloc();
   AVFrame* frame = av_frame_alloc();
   if (!frame) {
-    std::cerr << "Failed to allocate decoder frame" << std::endl;
-    return -1;
+    result.status = -1;
+    result.error = "Failed to allocate decoder frame";
+    return result;
   }
 
+  /*
   int sample_size = av_get_bytes_per_sample(codec->sample_fmt);
+  int sample_count = std::ceil(duration_seconds * codec->sample_rate);
   std::cout << "bytes per sample: " << sample_size << std::endl;
   std::cout << "channels: " << codec->channels << std::endl;
   std::cout << "frame size: " << codec->frame_size << std::endl;
-
-  float duration_seconds = format->duration / (float) AV_TIME_BASE;
-  std::cout << "duration: " << duration_seconds << std::endl;
-
-  int sample_count = std::ceil(duration_seconds * codec->sample_rate);
   std::cout << "estimated sample count: " << sample_count << std::endl;
+  std::cout << "duration: " << duration_seconds << std::endl;
+  */
 
   // seek to start timestamp
   int64_t start_timestamp = av_rescale(start, stream->time_base.den, stream->time_base.num);
-  int64_t max_timestamp = av_rescale(duration_seconds, stream->time_base.den, stream->time_base.num);
-  if (av_seek_frame(format, stream_index, std::min(start_timestamp, max_timestamp), AVSEEK_FLAG_ANY) < 0) {
-    std::cerr << "Failed to seek to start time: " << start << std::endl;
-    return -1;
+  int64_t max_timestamp = av_rescale(format->duration / (float) AV_TIME_BASE, stream->time_base.den, stream->time_base.num);
+  if ((result.status = av_seek_frame(format, audio_stream_index, std::min(start_timestamp, max_timestamp), AVSEEK_FLAG_ANY)) < 0) {
+    result.error = "Failed to seek to start time: " + std::to_string(start);
+    return result;
   }
 
   int status;
   int samples_to_decode = std::ceil(duration * codec->sample_rate);
   while ((status = av_read_frame(format, packet)) >= 0) {
-    if (packet->stream_index == stream_index) {
+    if (packet->stream_index == audio_stream_index) {
       // send compressed packet to decoder
       status = avcodec_send_packet(codec, packet);
       if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) {
         continue;
       } else if (status < 0) {
-        std::cerr << "Failed to decode packet: " << status << std::endl;
-        return -1;
+        result.status = status;
+        result.error = "Failed to decode packet!";
+        return result;
       }
 
       // receive uncompressed frame from decoder
@@ -118,43 +124,60 @@ int decode_audio(std::string& path, std::vector<float>& sample_buffer, int sampl
         if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) {
           break;
         } else if (status < 0) {
-          std::cerr << "Failed to decode frame" << std::endl;
-          return -1;
+          result.status = status;
+          result.error = "Failed to decode frame!";
+          return result;
         }
 
         // resample and store samples
         float* buffer;
         av_samples_alloc((uint8_t**) &buffer, nullptr, 1, frame->nb_samples, AV_SAMPLE_FMT_FLT, 0);
-        if (swr_convert(swr, (uint8_t**) &buffer, frame->nb_samples, (const uint8_t**) frame->data, frame->nb_samples) < 0) {
-          std::cerr << "Failed to resample frame" << std::endl;
-          return -1;
+        if ((result.status = swr_convert(swr, (uint8_t**) &buffer, frame->nb_samples, (const uint8_t**) frame->data, frame->nb_samples)) < 0) {
+          result.error = "Failed to resample frame!";
+          return result;
         }
-
         for (int i = 0; i < frame->nb_samples; i++) {
-          sample_buffer.push_back(buffer[i]);
+          result.samples.push_back(buffer[i]);
         }
-
         av_freep(&buffer);
       }
 
-      // stop decoding if necessary
-      if (samples_to_decode >= 0 && (int) sample_buffer.size() >= samples_to_decode) {
+      // stop decoding if we have enough samples
+      if (samples_to_decode >= 0 && (int) result.samples.size() >= samples_to_decode) {
         break;
       }
     }
   }
 
-  std::cout << "Stored sample count: " << sample_buffer.size() << std::endl;
+  std::cout << "Stored sample count: " << result.samples.size() << std::endl;
 
   // cleanup
+  avformat_free_context(format);
+  avcodec_free_context(&codec);
   av_packet_free(&packet);
   av_frame_free(&frame);
   swr_free(&swr);
-  avcodec_close(codec);
-  avformat_free_context(format);
 
   std::cout << "Success!" << std::endl;
 
   // success
-  return 0;
+  result.status = 0;
+  return result;
+}
+
+DecodeAudioResult test_obj(std::string str, int val) {
+  return {
+    val,
+    str,
+    std::vector<float>({ 1, 2, 3, 4, 5 })
+  };
+}
+
+EMSCRIPTEN_BINDINGS(my_module) {
+  emscripten::value_object<DecodeAudioResult>("DecodeAudioResult")
+    .field("status", &DecodeAudioResult::status)
+    .field("error", &DecodeAudioResult::error)
+    .field("samples", &DecodeAudioResult::samples);
+  emscripten::function("decodeAudio", &decode_audio);
+  emscripten::register_vector<float>("vector<float>");
 }

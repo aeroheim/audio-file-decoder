@@ -1,21 +1,21 @@
 # tool macros
 CC        := emcc
-CCFLAG    := -Wall -s WASM=1
+CCFLAG    := -Wall -Os --no-entry -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s STRICT=1 -s MALLOC=emmalloc -s MODULARIZE=1 -s EXPORT_ES6=1 --bind
 DBGFLAG   := -g
 LDFLAG    := `PKG_CONFIG_PATH="$$HOME/ffmpeg_build/lib/pkgconfig" pkg-config --cflags --libs libavcodec libavformat libswresample libavutil`
 CCOBJFLAG := $(CCFLAG) -c
 
 # path macros
-BIN_PATH := bin
+BIN_PATH := dist
 OBJ_PATH := obj
 SRC_PATH := src
 DBG_PATH := debug
 
 # compile macros
-TARGET_NAME := main.html
-TARGET := $(BIN_PATH)/$(TARGET_NAME)
+TARGET_NAME := decode-audio
+TARGET := $(BIN_PATH)/$(TARGET_NAME).js
 TARGET_DEBUG := $(DBG_PATH)/$(TARGET_NAME)
-MAIN_SRC := $(SRC_PATH)/main.cpp
+MAIN_SRC := $(SRC_PATH)/$(TARGET_NAME).cpp
 
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.c*)))
