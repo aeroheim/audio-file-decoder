@@ -10,7 +10,7 @@ git -C opus pull 2> /dev/null || git clone --depth 1 https://github.com/xiph/opu
 cd opus && \
 ./autogen.sh && \
 emconfigure ./configure \
-  CFLAGS="-O3" \
+  CFLAGS="-O2" \
   --prefix="$HOME/ffmpeg_build" \
   --disable-shared \
   --disable-rtcd \
@@ -33,7 +33,7 @@ wget -O lame-3.100.tar.gz https://downloads.sourceforge.net/project/lame/lame/3.
 tar xzvf lame-3.100.tar.gz && \
 cd lame-3.100 && \
 PATH="$HOME/bin:$PATH" emconfigure ./configure \
-  CFLAGS="-DNDEBUG -O3" \
+  CFLAGS="-DNDEBUG -O2" \
   --prefix="$HOME/ffmpeg_build" \
   --bindir="$HOME/bin" \
   --host=x86-none-linux \
