@@ -152,7 +152,7 @@ DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float s
   std::cout << "Stored sample count: " << result.samples.size() << std::endl;
 
   // cleanup
-  avformat_free_context(format);
+  avformat_close_input(&format);
   avcodec_free_context(&codec);
   av_packet_free(&packet);
   av_frame_free(&frame);
