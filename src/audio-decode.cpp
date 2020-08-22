@@ -1,10 +1,79 @@
 #include "audio-decode.h"
 #include <emscripten/bind.h>
 #include <iostream>
+#include <limits>
 #include <cmath>
 
+/*
+ * Reads the samples from a frame and puts them into the destination vector.
+ * Samples will be stored as floats in the range of -1 to 1.
+ * If the frame has multiple channels, samples will be averaged across all channels.
+ */
+template <typename SampleType>
+void read_samples(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
+  // use a midpoint offset between min/max for unsigned integer types
+  SampleType min_numeric = std::numeric_limits<SampleType>::min();
+  SampleType max_numeric = std::numeric_limits<SampleType>::max();
+  SampleType zero_sample = min_numeric == 0 ? max_numeric / 2 + 1 : 0;
+
+  for (int i = 0; i < frame->nb_samples; i++) {
+    float sample = 0.0f;
+    for (int j = 0; j < frame->channels; j++) {
+      sample += is_planar 
+        ? (
+          static_cast<float>(reinterpret_cast<SampleType*>(frame->extended_data[j])[i] - zero_sample) /
+          static_cast<float>(max_numeric - zero_sample)
+        )
+        : (
+          static_cast<float>(reinterpret_cast<SampleType*>(frame->data[0])[i * frame->channels + j] - zero_sample) / 
+          static_cast<float>(max_numeric - zero_sample)
+        );
+    }
+    sample /= frame->channels;
+    dest.push_back(sample);
+  }
+}
+
+template <>
+void read_samples<float>(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
+  for (int i = 0; i < frame->nb_samples; i++) {
+    float sample = 0.0f;
+    for (int j = 0; j < frame->channels; j++) {
+      sample += is_planar 
+        ? reinterpret_cast<float*>(frame->extended_data[j])[i]
+        : reinterpret_cast<float*>(frame->data[0])[i * frame->channels + j];
+    }
+    sample /= frame->channels;
+    dest.push_back(sample);
+  }
+}
+
+int read_samples(AVFrame* frame, AVSampleFormat format, std::vector<float>& dest) {
+  bool is_planar = av_sample_fmt_is_planar(format);
+  switch (format) {
+    case AV_SAMPLE_FMT_U8:
+    case AV_SAMPLE_FMT_U8P:
+      read_samples<uint8_t>(frame, dest, is_planar);
+      return 0;
+    case AV_SAMPLE_FMT_S16:
+    case AV_SAMPLE_FMT_S16P:
+      read_samples<int16_t>(frame, dest, is_planar);
+      return 0;
+    case AV_SAMPLE_FMT_S32:
+    case AV_SAMPLE_FMT_S32P:
+      read_samples<int32_t>(frame, dest, is_planar);
+      return 0;
+    case AV_SAMPLE_FMT_FLT:
+    case AV_SAMPLE_FMT_FLTP:
+      read_samples<float>(frame, dest, is_planar);
+      return 0;
+    default:
+      return -1;
+  }
+}
+
 // TODO: for array, might need to pass in length as well
-// TODO: better error handling (make sure to free resources on error)
+// TODO: proper error handling (need to free resources on error)
 DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float start = 0, float duration = -1) {
   DecodeAudioResult result = { 0, "", std::vector<float>() };
 
@@ -56,7 +125,6 @@ DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float s
     return result;
   }
 
-  // TODO: consider what codec format you want (e.g s16 vs f64)
   std::cout << "Using the following codec: " << avcodec_get_name(codec->codec_id) << std::endl;
 
   // initialize resampler
@@ -87,15 +155,6 @@ DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float s
     return result;
   }
 
-  /*
-  int sample_size = av_get_bytes_per_sample(codec->sample_fmt);
-  int sample_count = std::ceil(duration_seconds * codec->sample_rate);
-  std::cout << "bytes per sample: " << sample_size << std::endl;
-  std::cout << "channels: " << codec->channels << std::endl;
-  std::cout << "frame size: " << codec->frame_size << std::endl;
-  std::cout << "estimated sample count: " << sample_count << std::endl;
-  std::cout << "duration: " << duration_seconds << std::endl;
-  */
 
   // seek to start timestamp
   int64_t start_timestamp = av_rescale(start, stream->time_base.den, stream->time_base.num);
@@ -129,10 +188,15 @@ DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float s
           return result;
         }
 
+        // read samples from frame into result
+        read_samples(frame, codec->sample_fmt, result.samples);
+
+        // TODO: refactor - resample only if necessary
+        /*
         // resample and store samples
         float* buffer;
-        av_samples_alloc((uint8_t**) &buffer, nullptr, 1, frame->nb_samples, AV_SAMPLE_FMT_FLT, 0);
-        if ((result.status = swr_convert(swr, (uint8_t**) &buffer, frame->nb_samples, (const uint8_t**) frame->data, frame->nb_samples)) < 0) {
+        av_samples_alloc(reinterpret_cast<uint8_t**>(&buffer), nullptr, 1, frame->nb_samples, AV_SAMPLE_FMT_FLT, 0);
+        if ((result.status = swr_convert(swr, reinterpret_cast<uint8_t**>(&buffer), frame->nb_samples, const_cast<const uint8_t**>(frame->data), frame->nb_samples)) < 0) {
           result.error = "Failed to resample frame!";
           return result;
         }
@@ -140,10 +204,11 @@ DecodeAudioResult decode_audio(const std::string& path, int sample_rate, float s
           result.samples.push_back(buffer[i]);
         }
         av_freep(&buffer);
+        */
       }
 
       // stop decoding if we have enough samples
-      if (samples_to_decode >= 0 && (int) result.samples.size() >= samples_to_decode) {
+      if (samples_to_decode >= 0 && static_cast<int>(result.samples.size()) >= samples_to_decode) {
         break;
       }
     }
