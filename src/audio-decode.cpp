@@ -229,7 +229,9 @@ EMSCRIPTEN_BINDINGS(my_module) {
     .field("error", &Status::error);
   emscripten::value_object<AudioProperties>("AudioProperties")
     .field("status", &AudioProperties::status)
-    .field("sampleRate", &AudioProperties::sample_rate);
+    .field("sampleRate", &AudioProperties::sample_rate)
+    .field("channelCount", &AudioProperties::channels)
+    .field("encoding", &AudioProperties::encoding);
   emscripten::value_object<DecodeAudioResult>("DecodeAudioResult")
     .field("status", &DecodeAudioResult::status)
     .field("samples", &DecodeAudioResult::samples);
