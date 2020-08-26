@@ -1,5 +1,5 @@
 # path macros
-DIST_PATH := dist
+DIST_PATH := src/js/codegen
 SRC_PATH  := src/cpp
 OBJ_PATH  := obj
 DEPS_PATH := deps
