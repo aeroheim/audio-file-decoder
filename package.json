@@ -31,7 +31,13 @@
   },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "sync": "make sync",
+    "unsync": "make unsync",
+    "build-deps": "make deps",
+    "build-wasm": "make clean && make",
+    "clean-deps": "make clean-deps",
+    "clean-wasm": "make clean",
+    "clean": "rm -rf ./dist"
   },
   "devDependencies": {
     "@babel/core": "^7.11.4",
