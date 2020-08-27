@@ -29,15 +29,25 @@
     "email": "bp7936@gmail.com",
     "url": "https://aeroheim.moe/"
   },
-  "main": "index.js",
+  "main": "./dist/audio-file-decoder.js",
+  "types": "./dist/audio-file-decoder.d.ts",
+  "files": [
+    "/dist/audio-file-decoder.js",
+    "/dist/audio-file-decoder.d.ts",
+    "/dist/decode-audio.wasm"
+  ],
   "scripts": {
+    "prepublishOnly": "npm run build",
     "sync": "make sync",
     "unsync": "make unsync",
+    "build": "npm run clean && npm run types && rollup -c",
     "build-deps": "make deps",
     "build-wasm": "make clean && make",
+    "clean": "rm -rf ./dist",
     "clean-deps": "make clean-deps",
     "clean-wasm": "make clean",
-    "clean": "rm -rf ./dist"
+    "types": "dts-bundle-generator --project tsconfig.types.json ./src/lib/audio-file-decoder.ts -o ./dist/audio-file-decoder.d.ts",
+    "lint": "tsc --project tsconfig.types.json --noEmit && eslint . --ext .js --ext .ts"
   },
   "devDependencies": {
     "@babel/core": "^7.11.4",
@@ -47,8 +57,14 @@
     "@rollup/plugin-babel": "^5.2.0",
     "@typescript-eslint/eslint-plugin": "^3.10.1",
     "@typescript-eslint/parser": "^3.10.1",
+    "dts-bundle-generator": "^5.4.0",
     "eslint": "^7.7.0",
     "rollup": "^2.26.5",
-    "rollup-plugin-eslint": "^6.0.0"
-  }
+    "rollup-plugin-copy": "^3.3.0",
+    "rollup-plugin-eslint": "^7.0.0",
+    "rollup-plugin-filesize": "^9.0.2",
+    "rollup-plugin-terser": "^7.0.0",
+    "typescript": "^4.0.2"
+  },
+  "dependencies": {}
 }

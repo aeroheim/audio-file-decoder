@@ -1,14 +1,8 @@
-import decodeAudioModule from './codegen/decode-audio';
-
-interface DecodeAudioResult {
-  status: number;
-  error: string;
-  samples: Float32Array;
-}
+import decodeAudioModule from '../wasm/decode-audio.js';
 
 function readFile(file: Blob): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
-    let reader = new FileReader();
+    const reader = new FileReader();
     reader.onerror = (e) => {
       reader.abort();
       reject(e);
@@ -22,6 +16,7 @@ function readFile(file: Blob): Promise<ArrayBuffer> {
 
 /**
  * Creates an AudioDecoder for the given file.
+ * Make sure to call dispose() when no longer needed to free its resources.
  * @param {File} file
  * @returns Promise
  */
@@ -34,7 +29,7 @@ function getAudioDecoder(file: File): Promise<AudioDecoder> {
 
 /**
  * A disposable class for decoding an audio file.
- * Should only be instantiated using the getAudioDecoder() factory function.
+ * Should only be instantiated with the getAudioDecoder() factory function.
  * Make sure to call dispose() when no longer needed to free its resources.
  */
 class AudioDecoder {
@@ -44,8 +39,10 @@ class AudioDecoder {
   private _channelCount: number;
   private _encoding: string;
 
-  constructor(m: any, data: ArrayBuffer) {
+  constructor(m, data: ArrayBuffer) {
     this._module = m;
+
+    // TODO: handle non-browser case - use actual FS instead
     this._module.FS.writeFile(AudioDecoder.path, new Int8Array(data));
 
     // read file properties
@@ -58,15 +55,15 @@ class AudioDecoder {
     this._encoding = encoding;
   }
 
-  get sampleRate() {
+  get sampleRate(): number {
     return this._sampleRate;
   }
 
-  get channelCount() {
+  get channelCount(): number {
     return this._channelCount;
   }
 
-  get encoding() {
+  get encoding(): string {
     return this._encoding;
   }
 
@@ -74,13 +71,13 @@ class AudioDecoder {
    * Decodes audio from the currently loaded file.
    * @param {number} start=0 - the timestamp in seconds to start decoding at.
    * @param {number} duration=-1 - the length in seconds to decode, or -1 to decode until the end of the file.
-   * @returns DecodeAudioResult
+   * @returns Float32Array
    */
-  decodeAudioData(start: number = 0, duration: number = -1): DecodeAudioResult {
+  decodeAudioData(start = 0, duration = -1): Float32Array {
     const { status: { status, error }, samples: vector } = this._module.decodeAudio(AudioDecoder.path, start, duration);
     if (status < 0) {
       vector.delete();
-      throw `decodeAudio error: ${error}`;
+      throw `decodeAudioData error: ${error}`;
     }
 
     const samples = new Float32Array(vector.size());
@@ -91,12 +88,7 @@ class AudioDecoder {
     // objects from C++ must be deleted explicitly
     // see https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html#memory-management
     vector.delete();
-
-    return {
-      status,
-      error,
-      samples
-    };
+    return samples;
   }
 
   /**

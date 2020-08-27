@@ -1,5 +1,6 @@
-bin/
-obj/
-deps/
-.vscode/
+.vscode
 node_modules
+obj
+deps
+dist
+src/wasm

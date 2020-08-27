@@ -1,6 +1,6 @@
 # path macros
 WASM_PATH := src/wasm
-SRC_PATH  := src/cpp
+SRC_PATH  := src/module
 OBJ_PATH  := obj
 DEPS_PATH := deps
 
@@ -17,13 +17,6 @@ LIBMP3LAME_VER         := 3.100
 LIBMP3LAME_SRC_PATH    := $(DEPS_PATH)/src/libmp3lame
 LIBMP3LAME_DIST_PATH   := $(DEPS_PATH)/dist/libmp3lame
 
-# compiler macros
-CC        := emcc
-CCFLAG    := -Wall -O3 -fno-exceptions --no-entry -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s STRICT=1 -s MALLOC=emmalloc \
-			 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] --bind
-LDFLAG    := `PKG_CONFIG_PATH="$(FFMPEG_LIB_PATH)/pkgconfig" pkg-config --cflags --libs libavcodec libavformat libavutil`
-CCOBJFLAG := $(CCFLAG) -c
-
 # target macros
 TARGET_NAME            := decode-audio
 TARGET                 := $(WASM_PATH)/$(TARGET_NAME).js
@@ -33,6 +26,25 @@ LIBOPUS_TARGET_NAME    := libopus
 LIBOPUS_TARGET         := $(foreach target, $(LIBOPUS_TARGET_NAME), $(FFMPEG_LIB_PATH)/$(target).a)
 LIBMP3LAME_TARGET_NAME := libmp3lame
 LIBMP3LAME_TARGET      := $(foreach target, $(LIBMP3LAME_TARGET_NAME), $(FFMPEG_LIB_PATH)/$(target).a)
+
+# compiler macros
+CC        := emcc
+CCFLAG    := \
+	-Wall \
+	-O3 \
+	-fno-exceptions \
+	--no-entry \
+	--closure 1 \
+	-s WASM=1 \
+	-s ALLOW_MEMORY_GROWTH=1 \
+	-s STRICT=1 \
+	-s MALLOC=emmalloc \
+	-s MODULARIZE=1 \
+	-s EXPORT_ES6=1 \
+	-s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] \
+	--bind
+LDFLAG    := `PKG_CONFIG_PATH="$(FFMPEG_LIB_PATH)/pkgconfig" pkg-config --cflags --libs $(FFMPEG_TARGET_NAME)`
+CCOBJFLAG := $(CCFLAG) -c
 
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.c*)))
