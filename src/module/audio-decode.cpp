@@ -71,42 +71,48 @@ int read_samples(AVFrame* frame, AVSampleFormat format, std::vector<float>& dest
   }
 }
 
-Status openAudioStream(const std::string& path, AVFormatContext*& format, AVCodecContext*& codec, int& audio_stream_index) {
+std::string get_error_str(int status) {
+  char errbuf[AV_ERROR_MAX_STRING_SIZE];
+  av_make_error_string(errbuf, AV_ERROR_MAX_STRING_SIZE, status);
+  return std::string(errbuf);
+}
+
+Status open_audio_stream(const std::string& path, AVFormatContext*& format, AVCodecContext*& codec, int& audio_stream_index) {
   Status status;
   format = avformat_alloc_context();
   if ((status.status = avformat_open_input(&format, path.c_str(), nullptr, nullptr)) != 0) {
-    status.error = "Failed to open file!";
+    status.error = "avformat_open_input: " + get_error_str(status.status);
     return status;
   }
   if ((status.status = avformat_find_stream_info(format, nullptr)) < 0) {
-    status.error = "Failed to read file metadata!";
+    status.error = "avformat_find_stream_info: " + get_error_str(status.status);
     return status;
   }
   AVCodec* decoder;
   if ((audio_stream_index = av_find_best_stream(format, AVMEDIA_TYPE_AUDIO, -1, -1, &decoder, -1)) < 0) {
     status.status = audio_stream_index;
-    status.error = "Failed to locate audio stream!";
+    status.error = "av_find_best_stream: Failed to locate audio stream";
     return status;
   }
   codec = avcodec_alloc_context3(decoder);
   if (!codec) {
     status.status = -1;
-    status.error = "Failed to allocate decoder memory!";
+    status.error = "avcodec_alloc_context3: Failed to allocate decoder";
     return status;
   }
   if ((status.status = avcodec_parameters_to_context(codec, format->streams[audio_stream_index]->codecpar)) < 0) {
-    status.error = "Failed to initialize decoder!";
+    status.error = "avcodec_parameters_to_context: " + get_error_str(status.status);
     return status;
   }
   if ((status.status = avcodec_open2(codec, decoder, nullptr)) < 0) {
-    status.error = "Failed to open decoder!";
+    status.error = "avcodec_open2: " + get_error_str(status.status);
     return status;
   }
 
   return status;
 }
 
-void closeAudioStream(AVFormatContext* format, AVCodecContext* codec, AVFrame* frame, AVPacket* packet) {
+void close_audio_stream(AVFormatContext* format, AVCodecContext* codec, AVFrame* frame, AVPacket* packet) {
   if (format) {
     avformat_close_input(&format);
   }
@@ -127,9 +133,9 @@ AudioProperties get_properties(const std::string& path) {
   AVCodecContext* codec;
   int audio_stream_index;
 
-  status = openAudioStream(path, format, codec, audio_stream_index);
+  status = open_audio_stream(path, format, codec, audio_stream_index);
   if (status.status < 0) {
-    closeAudioStream(format, codec, nullptr, nullptr);
+    close_audio_stream(format, codec, nullptr, nullptr);
     return { status };
   }
 
@@ -140,7 +146,7 @@ AudioProperties get_properties(const std::string& path) {
     codec->channels
   };
 
-  closeAudioStream(format, codec, nullptr, nullptr);
+  close_audio_stream(format, codec, nullptr, nullptr);
   return properties;
 }
 
@@ -150,9 +156,9 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
   AVCodecContext* codec;
   int audio_stream_index;
 
-  status = openAudioStream(path, format, codec, audio_stream_index);
+  status = open_audio_stream(path, format, codec, audio_stream_index);
   if (status.status < 0) {
-    closeAudioStream(format, codec, nullptr, nullptr);
+    close_audio_stream(format, codec, nullptr, nullptr);
     // check if vector is undefined/null in js
     return { status };
   }
@@ -162,17 +168,17 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
   int64_t start_timestamp = av_rescale(start, stream->time_base.den, stream->time_base.num);
   int64_t max_timestamp = av_rescale(format->duration / static_cast<float>(AV_TIME_BASE), stream->time_base.den, stream->time_base.num);
   if ((status.status = av_seek_frame(format, audio_stream_index, std::min(start_timestamp, max_timestamp), AVSEEK_FLAG_ANY)) < 0) {
-    closeAudioStream(format, codec, nullptr, nullptr);
-    status.error = "Failed to seek to start time: " + std::to_string(start);
+    close_audio_stream(format, codec, nullptr, nullptr);
+    status.error = "av_seek_frame: " + get_error_str(status.status) + ". timestamp: " + std::to_string(start);
     return { status };
   }
 
   AVPacket* packet = av_packet_alloc();
   AVFrame* frame = av_frame_alloc();
   if (!packet || !frame) {
-    closeAudioStream(format, codec, frame, packet);
+    close_audio_stream(format, codec, frame, packet);
     status.status = -1;
-    status.error = "Failed to allocate decoder frame";
+    status.error = "av_packet_alloc/av_frame_alloc: Failed to allocate decoder frame";
     return { status };
   }
 
@@ -186,8 +192,8 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
       if (status.status == AVERROR(EAGAIN) || status.status == AVERROR_EOF) {
         continue;
       } else if (status.status < 0) {
-        closeAudioStream(format, codec, frame, packet);
-        status.error = "Failed to decode packet!";
+        close_audio_stream(format, codec, frame, packet);
+        status.error = "avcodec_send_packet: " + get_error_str(status.status);
         return { status };
       }
 
@@ -196,8 +202,8 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
         if (status.status == AVERROR(EAGAIN) || status.status == AVERROR_EOF) {
           break;
         } else if (status.status < 0) {
-          closeAudioStream(format, codec, frame, packet);
-          status.error = "Failed to decode frame!";
+          close_audio_stream(format, codec, frame, packet);
+          status.error = "avcodec_receive_frame: " + get_error_str(status.status);
           return { status };
         }
 
@@ -216,7 +222,7 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
   }
 
   // cleanup
-  closeAudioStream(format, codec, frame, packet);
+  close_audio_stream(format, codec, frame, packet);
 
   // success
   status.status = 0;
