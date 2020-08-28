@@ -13,9 +13,9 @@ A library for decoding audio files in browser and node environments, including s
 In the future the [WebCodecs](https://github.com/WICG/web-codecs) proposal may address this oversight but until then this can be used as a more memory-friendly alternative to WebAudio's `decodeAudioData`.
 
 ### Notes
-* Files in memory in browser environments since the filesystem is sandboxed.
-* This library will automatically downmix multiple channels into a single channel by averaging samples across all channels.
-* This library does **NOT** resample decoded audio, whereas `decodeAudioData` will automatically resample to the sample rate of its `AudioContext`.
+* Files will be stored in memory since the filesystem is sandboxed. The benefit of this library is that you no longer need to store the entire uncompressed audio in memory.
+* Multiple channels are automatically downmixed into a single channel via sample averaging.
+* Decoded audio is **NOT** resampled, whereas `decodeAudioData` will automatically resample to the sample rate of its `AudioContext`.
 * Sample position accuracy may be slightly off when decoding timestamp ranges due to timestamp precision and how FFmpeg's seek behaves. FFmpeg tries to seek to the closest frame possible for timestamps which may introduce an error of a few frames, where each frame contains a fixed (e.g 1024 samples) or dynamic number of samples depending on the audio file encoding.
 * Performance is about ~2x slower than Chromium's implementation of `decodeAudioData`. Chromium's implementation also uses FFmpeg for decoding, but is able to run natively with threading and native optimizations enabled, while this library has them disabled for WebAssembly compatibility.
 
