@@ -96,4 +96,4 @@ npm run clean-deps
 ```
 
 ## License
-LGPL v2.1 or later
+Licensed under LGPL v2.1 or later. See the [license file](./LICENSE) for more info.
