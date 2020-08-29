@@ -1,4 +1,6 @@
 # audio-file-decoder
+[![npm version](https://img.shields.io/npm/v/audio-file-decoder.svg)](https://npmjs.org/package/audio-file-decoder "View this project on npm")
+
 ## About
 A library for decoding audio files in browser and node environments, including specific timestamp ranges within files. Written with FFmpeg and WebAssembly and supports the following audio file formats:
 * MP3
