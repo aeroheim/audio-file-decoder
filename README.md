@@ -113,5 +113,8 @@ npm run build-deps
 npm run clean-deps
 ```
 
+## Contributing
+Contributions are welcome! Feel free to submit issues or PRs for any bugs or feature requests.
+
 ## License
 Licensed under LGPL v2.1 or later. See the [license file](./LICENSE) for more info.
