@@ -1,6 +1,6 @@
 {
   "name": "audio-file-decoder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Decode audio files using FFmpeg and WebAssembly",
   "license": "LGPL-2.1-or-later",
   "keywords": [
