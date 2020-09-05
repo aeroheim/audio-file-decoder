@@ -4,3 +4,4 @@ obj
 deps
 dist
 src/wasm
+*.wasm
