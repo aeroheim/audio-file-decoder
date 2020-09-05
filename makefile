@@ -1,9 +1,11 @@
-# path macros
-WASM_PATH := src/wasm
+# paths
+LIB_PATH  := src/lib
 SRC_PATH  := src/module
+WASM_PATH := src/wasm
 OBJ_PATH  := obj
 DEPS_PATH := deps
 
+# dependencies
 EMSDK_VER              := 2.0.1
 EMSDK_PATH             := $(DEPS_PATH)/emsdk
 FFMPEG_VER             := 4.3.1
@@ -17,9 +19,10 @@ LIBMP3LAME_VER         := 3.100
 LIBMP3LAME_SRC_PATH    := $(DEPS_PATH)/src/libmp3lame
 LIBMP3LAME_DIST_PATH   := $(DEPS_PATH)/dist/libmp3lame
 
-# target macros
-TARGET_NAME            := decode-audio
-TARGET                 := $(WASM_PATH)/$(TARGET_NAME).js
+# targets
+WASM_TARGET            := $(WASM_PATH)/decode-audio.js
+WASM_WORKER_TARGET     := $(WASM_PATH)/decode-audio-worker.js
+WASM_WORKER_SRC        := $(LIB_PATH)/worker.js
 FFMPEG_TARGET_NAME     := libavcodec libavformat libavutil
 FFMPEG_TARGET          := $(foreach target, $(FFMPEG_TARGET_NAME), $(FFMPEG_LIB_PATH)/$(target).a)
 LIBOPUS_TARGET_NAME    := libopus
@@ -27,48 +30,59 @@ LIBOPUS_TARGET         := $(foreach target, $(LIBOPUS_TARGET_NAME), $(FFMPEG_LIB
 LIBMP3LAME_TARGET_NAME := libmp3lame
 LIBMP3LAME_TARGET      := $(foreach target, $(LIBMP3LAME_TARGET_NAME), $(FFMPEG_LIB_PATH)/$(target).a)
 
-# compiler macros
-CC        := emcc
-CCFLAG    := \
+# compiler flags
+CC            := emcc
+COMMON_CCFLAG := \
 	-Wall \
 	-O3 \
-	-fno-exceptions \
-	--no-entry \
 	--closure 1 \
+	--no-entry \
+	-fno-exceptions \
 	-s WASM=1 \
-	-s ALLOW_MEMORY_GROWTH=1 \
 	-s STRICT=1 \
-	-s MALLOC=emmalloc \
 	-s MODULARIZE=1 \
-	-s EXPORT_ES6=1 \
+	-s MALLOC=emmalloc \
+	-s ALLOW_MEMORY_GROWTH=1 \
 	-s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] \
 	--bind
-LDFLAG    := `PKG_CONFIG_PATH="$(FFMPEG_LIB_PATH)/pkgconfig" pkg-config --cflags --libs $(FFMPEG_TARGET_NAME)`
-CCOBJFLAG := $(CCFLAG) -c
+CCFLAG        := \
+	$(COMMON_CCFLAG) \
+	-s EXPORT_ES6
+CCFLAG_WORKER := \
+	$(COMMON_CCFLAG) \
+	-s --extern-post-js $(WASM_WORKER_SRC)
+CCOBJFLAG     := $(COMMON_CCFLAG) -c
+LDFLAG        := `PKG_CONFIG_PATH="$(FFMPEG_LIB_PATH)/pkgconfig" pkg-config --cflags --libs $(FFMPEG_TARGET_NAME)`
 
 # src files & obj files
 SRC := $(foreach x, $(SRC_PATH), $(wildcard $(addprefix $(x)/*,.c*)))
 OBJ := $(addprefix $(OBJ_PATH)/, $(addsuffix .o, $(notdir $(basename $(SRC)))))
 
-# non-phony targets
-$(TARGET): $(OBJ)
+# the default target
+wasm: $(WASM_TARGET) $(WASM_WORKER_TARGET)
+
+# wasm file & js file with glue code to be included in library bundle
+$(WASM_TARGET): $(OBJ)
 	@ mkdir -p $(WASM_PATH)
 	$(CC) $(CCFLAG) -o $@ $? $(LDFLAG)
 
+# worker js file with glue code inlined
+$(WASM_WORKER_TARGET): $(OBJ)
+	@ mkdir -p $(WASM_PATH)
+	EMCC_CLOSURE_ARGS="--language_in=ECMASCRIPT6" $(CC) $(CCFLAG_WORKER) -o $@ $? $(LDFLAG)
+
+# object files
 $(OBJ_PATH)/%.o: $(SRC_PATH)/%.c*
 	@ mkdir -p $(OBJ_PATH)
 	$(CC) $(CCOBJFLAG) -o $@ $< $(LDFLAG)
 
 # phony targets
-.PHONY: dist \
-	clean \
+.PHONY: clean \
 	deps ffmpeg libopus libmp3lame \
 	clean-deps clean-ffmpeg clean-libopus clean-libmp3lame \
 	sync sync-ffmpeg sync-libopus sync-libmp3lame \
 	unsync unsync-ffmpeg unsync-libopus unsync-libmp3lame
 
-# rules for wasm/js output - the default target
-dist: $(TARGET)
 clean:
 	@echo Removing $(OBJ_PATH) $(WASM_PATH)
 	@rm -rf $(OBJ_PATH) $(WASM_PATH)
