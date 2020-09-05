@@ -34,7 +34,7 @@
   "files": [
     "/dist/audio-file-decoder.js",
     "/dist/audio-file-decoder.d.ts",
-    "/dist/decode-audio.wasm"
+    "/decode-audio.wasm"
   ],
   "scripts": {
     "prepublishOnly": "npm run build",
@@ -43,7 +43,7 @@
     "build": "npm run clean && npm run types && rollup -c",
     "build-deps": "make deps",
     "build-wasm": "make clean && make",
-    "clean": "rm -rf ./dist",
+    "clean": "rm -rf ./dist && rm -rf ./decode-audio.wasm",
     "clean-deps": "make clean-deps",
     "clean-wasm": "make clean",
     "types": "dts-bundle-generator --project tsconfig.types.json ./src/lib/audio-file-decoder.ts -o ./dist/audio-file-decoder.d.ts",
@@ -55,6 +55,7 @@
     "@babel/preset-env": "^7.11.0",
     "@babel/preset-typescript": "^7.10.4",
     "@rollup/plugin-babel": "^5.2.0",
+    "@rollup/plugin-node-resolve": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^3.10.1",
     "@typescript-eslint/parser": "^3.10.1",
     "dts-bundle-generator": "^5.4.0",
@@ -64,6 +65,7 @@
     "rollup-plugin-eslint": "^7.0.0",
     "rollup-plugin-filesize": "^9.0.2",
     "rollup-plugin-terser": "^7.0.0",
+    "rollup-plugin-web-worker-loader": "^1.3.1",
     "typescript": "^4.0.2"
   },
   "dependencies": {}

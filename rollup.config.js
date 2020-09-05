@@ -1,9 +1,12 @@
+import resolve from '@rollup/plugin-node-resolve';
+import worker from 'rollup-plugin-web-worker-loader';
 import babel from '@rollup/plugin-babel';
-import copy from 'rollup-plugin-copy';
 import filesize from 'rollup-plugin-filesize';
+import copy from 'rollup-plugin-copy';
 import { eslint } from 'rollup-plugin-eslint';
 import { terser } from 'rollup-plugin-terser';
 
+const extensions = ['.js', '.ts'];
 export default {
   input: 'src/lib/audio-file-decoder.ts',
   output: {
@@ -11,7 +14,9 @@ export default {
     format: 'esm',
   },
   plugins: [
+    resolve({ extensions }),
     eslint(),
+    worker(),
     babel({
       presets: [
         '@babel/preset-env',
@@ -21,15 +26,17 @@ export default {
         '@babel/plugin-proposal-class-properties',
       ],
       exclude: 'node_modules/**',
-      extensions: ['.js', '.ts'],
+      extensions,
       babelHelpers: 'bundled',
     }),
     terser(),
     filesize(),
     copy({
       targets: [
-        { src: 'src/wasm/decode-audio.wasm', dest: 'dist' },
-      ],
+        // the wasm is copied to the root directory instead of dist for more intuitive submodule access
+        // clients will be able to import the wasm module with 'audio-file-decoder/decode-audio.wasm'
+        { src: 'src/wasm/decode-audio.wasm', dest: '.' },
+      ]
     }),
-  ]
+  ],
 };
