@@ -9,6 +9,13 @@ enum AudioDecoderMessageType {
   Dispose = 'dispose',
 }
 
+/**
+ * Creates an AudioDecoderWorker for the given audio file.
+ * Make sure to call dispose() when no longer needed to free its resources.
+ * @param {string} wasm - a path or inlined version to/of decode-audio.wasm
+ * @param {File} file - the audio file to process
+ * @returns Promise
+ */
 function getAudioDecoderWorker(wasm: string, file: File): Promise<AudioDecoderWorker> {
   const worker = new DecodeAudioWorker();
   return new Promise<AudioDecoderWorker>((resolve, reject) => {
