@@ -1,6 +1,8 @@
 #ifdef __cplusplus
 extern "C"
 {
+  #define __STDC_CONSTANT_MACROS
+  #include <libavutil/log.h>
   #include <libavutil/opt.h>
   #include <libavcodec/avcodec.h>
   #include <libavformat/avformat.h>

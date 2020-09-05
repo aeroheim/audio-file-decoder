@@ -128,6 +128,8 @@ void close_audio_stream(AVFormatContext* format, AVCodecContext* codec, AVFrame*
 }
 
 AudioProperties get_properties(const std::string& path) {
+  av_log_set_level(AV_LOG_ERROR);
+
   Status status;
   AVFormatContext* format;
   AVCodecContext* codec;
@@ -151,6 +153,8 @@ AudioProperties get_properties(const std::string& path) {
 }
 
 DecodeAudioResult decode_audio(const std::string& path, float start = 0, float duration = -1) {
+  av_log_set_level(AV_LOG_ERROR);
+
   Status status;
   AVFormatContext* format;
   AVCodecContext* codec;
