@@ -140,12 +140,12 @@ AudioProperties get_properties(const std::string& path) {
     close_audio_stream(format, codec, nullptr, nullptr);
     return { status };
   }
-
   AudioProperties properties = {
     status,
     avcodec_get_name(codec->codec_id),
     codec->sample_rate,
-    codec->channels
+    codec->channels,
+    format->duration / static_cast<float>(AV_TIME_BASE)
   };
 
   close_audio_stream(format, codec, nullptr, nullptr);
@@ -239,9 +239,10 @@ EMSCRIPTEN_BINDINGS(my_module) {
     .field("error", &Status::error);
   emscripten::value_object<AudioProperties>("AudioProperties")
     .field("status", &AudioProperties::status)
+    .field("encoding", &AudioProperties::encoding)
     .field("sampleRate", &AudioProperties::sample_rate)
     .field("channelCount", &AudioProperties::channels)
-    .field("encoding", &AudioProperties::encoding);
+    .field("duration", &AudioProperties::duration);
   emscripten::value_object<DecodeAudioResult>("DecodeAudioResult")
     .field("status", &DecodeAudioResult::status)
     .field("samples", &DecodeAudioResult::samples);

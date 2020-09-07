@@ -14,7 +14,7 @@ function initializeDecoder(messageType, wasm, fileData) {
     .then(m => {
       _decoder = m;
       _decoder.FS.writeFile(_decoder_memfs_path, new Int8Array(fileData));
-      const { status: { status, error }, sampleRate, channelCount, encoding } = _decoder.getProperties(_decoder_memfs_path);
+      const { status: { status, error }, sampleRate, channelCount, encoding, duration } = _decoder.getProperties(_decoder_memfs_path);
       if (status < 0) {
         _decoder.FS.unlink(_decoder_memfs_path);
         throwError(messageType, error);
@@ -22,7 +22,8 @@ function initializeDecoder(messageType, wasm, fileData) {
       return {
         sampleRate,
         channelCount,
-        encoding
+        encoding,
+        duration,
       };
     });
 }
@@ -51,7 +52,7 @@ onmessage = function(e) {
     case 'initialize':
       const { wasm, fileData } = e.data;
       initializeDecoder(type, wasm, fileData)
-        .then(({ sampleRate, channelCount, encoding }) => postMessage({ type, sampleRate, channelCount, encoding }));
+        .then(({ sampleRate, channelCount, encoding, duration }) => postMessage({ type, sampleRate, channelCount, encoding, duration }));
       break;
     case 'decode':
       const { id, start, duration } = e.data;

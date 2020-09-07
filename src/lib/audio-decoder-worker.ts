@@ -22,12 +22,13 @@ function getAudioDecoderWorker(wasm: string, file: File): Promise<AudioDecoderWo
     readFile(file)
       .then(fileData => {
         worker.onmessage = (e: MessageEvent) => {
-          const { type, sampleRate, channelCount, encoding } = e.data;
+          const { type, sampleRate, channelCount, encoding, duration } = e.data;
           if (type === AudioDecoderMessageType.Initialize) {
             resolve(new AudioDecoderWorker(worker, {
               sampleRate,
               channelCount,
               encoding,
+              duration,
             }));
           } else {
             reject('Failed to initialize decoder worker');
@@ -46,6 +47,7 @@ interface AudioFileProperties {
   sampleRate: number;
   channelCount: number;
   encoding: string;
+  duration: number;
 }
 
 /**
@@ -72,6 +74,10 @@ class AudioDecoderWorker {
 
   get encoding(): string {
     return this._properties.encoding;
+  }
+
+  get duration(): number {
+    return this._properties.duration;
   }
 
   /**

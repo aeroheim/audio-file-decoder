@@ -21,6 +21,7 @@ struct AudioProperties {
   std::string encoding;
   int sample_rate;
   int channels;
+  float duration;
 };
 
 struct DecodeAudioResult {

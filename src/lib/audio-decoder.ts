@@ -26,19 +26,21 @@ class AudioDecoder {
   private _sampleRate: number;
   private _channelCount: number;
   private _encoding: string;
+  private _duration: number;
 
   constructor(m, data: ArrayBuffer) {
     this._module = m;
     this._module.FS.writeFile(AudioDecoder.MEMFS_PATH, new Int8Array(data));
 
     // read file properties
-    const { status: { status, error }, sampleRate, channelCount, encoding } = this._module.getProperties(AudioDecoder.MEMFS_PATH)
+    const { status: { status, error }, sampleRate, channelCount, encoding, duration } = this._module.getProperties(AudioDecoder.MEMFS_PATH)
     if (status < 0) {
       throw `AudioDecoder initialization error: ${error}`;
     }
     this._sampleRate = sampleRate;
     this._channelCount = channelCount;
     this._encoding = encoding;
+    this._duration = duration;
   }
 
   get sampleRate(): number {
@@ -51,6 +53,10 @@ class AudioDecoder {
 
   get encoding(): string {
     return this._encoding;
+  }
+
+  get duration(): number {
+    return this._duration;
   }
 
   /**

@@ -39,6 +39,7 @@ getAudioDecoder(DecodeAudioWasm, audioFile)
     const sampleRate = decoder.sampleRate; // the sample rate of the audio file (e.g 44100)
     const channelCount = decoder.channelCount; // the number of channels in the audio file (e.g 2 if stereo)
     const encoding = decoder.encoding; // the encoding of the audio file as a string (e.g pcm_s16le)
+    const duration = decoder.duration; // the duration of the audio file in seconds (e.g 5.43)
 
     // samples are returned as a Float32Array
     let samples;
@@ -69,6 +70,7 @@ getAudioDecoderWorker(DecodeAudioWasm, audioFile)
     const sampleRate = decoder.sampleRate; // the sample rate of the audio file (e.g 44100)
     const channelCount = decoder.channelCount; // the number of channels in the audio file (e.g 2 if stereo)
     const encoding = decoder.encoding; // the encoding of the audio file as a string (e.g pcm_s16le)
+    const duration = decoder.duration; // the duration of the audio file in seconds (e.g 5.43)
 
     audioDecoder = decoder;
 
