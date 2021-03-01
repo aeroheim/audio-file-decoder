@@ -1,6 +1,6 @@
 // @ts-ignore
 import DecodeAudioWorker from 'web-worker:../wasm/decode-audio-worker';
-import { readFile } from './utils';
+import { readBuffer } from './utils';
 
 enum AudioDecoderMessageType {
   Initialize = 'initialize',
@@ -13,13 +13,13 @@ enum AudioDecoderMessageType {
  * Creates an AudioDecoderWorker for the given audio file.
  * Make sure to call dispose() when no longer needed to free its resources.
  * @param {string} wasm - a path or inlined version to/of decode-audio.wasm
- * @param {File} file - the audio file to process
+ * @param {File | ArrayBuffer} fileOrBuffer - the audio file or buffer to process
  * @returns Promise
  */
-function getAudioDecoderWorker(wasm: string, file: File): Promise<AudioDecoderWorker> {
+function getAudioDecoderWorker(wasm: string, fileOrBuffer: File | ArrayBuffer): Promise<AudioDecoderWorker> {
   const worker = new DecodeAudioWorker();
   return new Promise<AudioDecoderWorker>((resolve, reject) => {
-    readFile(file)
+    readBuffer(fileOrBuffer)
       .then(fileData => {
         worker.onmessage = (e: MessageEvent) => {
           const { type, sampleRate, channelCount, encoding, duration } = e.data;

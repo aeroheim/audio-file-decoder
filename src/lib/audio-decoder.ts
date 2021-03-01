@@ -1,17 +1,17 @@
 import decodeAudioModule from '../wasm/decode-audio';
-import { readFile } from './utils';
+import { readBuffer } from './utils';
 
 /**
  * Creates an AudioDecoder for the given audio file.
  * Make sure to call dispose() when no longer needed to free its resources.
  * @param {string} wasm - a path or inlined version to/of decode-audio.wasm
- * @param {File} file - the audio file to process
+ * @param {File | ArrayBuffer} fileOrBuffer - the audio file or buffer to process
  * @returns Promise
  */
-function getAudioDecoder(wasm: string, file: File): Promise<AudioDecoder> {
+function getAudioDecoder(wasm: string, fileOrBuffer: File | ArrayBuffer): Promise<AudioDecoder> {
   // load a new instance of the wasm module per file
   // this is done to reset the allocated heap per file, as wasm doesn't have a way to shrink the heap manually
-  return Promise.all([decodeAudioModule({ locateFile: () => wasm }), readFile(file)])
+  return Promise.all([decodeAudioModule({ locateFile: () => wasm }), readBuffer(fileOrBuffer)])
     .then(results => new AudioDecoder(results[0], results[1]));
 }
 
