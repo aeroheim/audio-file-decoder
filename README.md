@@ -34,7 +34,10 @@ An example of synchronous audio file decoding in ES6:
 import { getAudioDecoder } from 'audio-file-decoder';
 import DecodeAudioWasm from 'audio-file-decoder/decode-audio.wasm'; // path to wasm asset
 
-getAudioDecoder(DecodeAudioWasm, audioFile)
+// either a File object or an ArrayBuffer representing the audio file
+const fileOrArrayBuffer = ...;
+
+getAudioDecoder(DecodeAudioWasm, fileOrArrayBuffer)
   .then(decoder => {
     const sampleRate = decoder.sampleRate; // the sample rate of the audio file (e.g 44100)
     const channelCount = decoder.channelCount; // the number of channels in the audio file (e.g 2 if stereo)
@@ -64,8 +67,11 @@ An example of asynchronous audio file decoding in ES6:
 import { getAudioDecoderWorker } from 'audio-file-decoder';
 import DecodeAudioWasm from 'audio-file-decoder/decode-audio.wasm'; // path to wasm asset
 
+// either a File object or an ArrayBuffer representing the audio file
+const fileOrArrayBuffer = ...;
+
 let audioDecoder;
-getAudioDecoderWorker(DecodeAudioWasm, audioFile)
+getAudioDecoderWorker(DecodeAudioWasm, fileOrArrayBuffer)
   .then(decoder => {
     const sampleRate = decoder.sampleRate; // the sample rate of the audio file (e.g 44100)
     const channelCount = decoder.channelCount; // the number of channels in the audio file (e.g 2 if stereo)
