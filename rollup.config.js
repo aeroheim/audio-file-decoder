@@ -24,10 +24,11 @@ export default {
       ],
       plugins: [
         '@babel/plugin-proposal-class-properties',
+        '@babel/plugin-transform-runtime',
       ],
       exclude: 'node_modules/**',
       extensions,
-      babelHelpers: 'bundled',
+      babelHelpers: 'runtime',
     }),
     terser(),
     filesize(),
