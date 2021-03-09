@@ -30,6 +30,7 @@
     "url": "https://aeroheim.moe/"
   },
   "main": "./dist/audio-file-decoder.js",
+  "browser": "./dist/audio-file-decoder.js",
   "types": "./dist/audio-file-decoder.d.ts",
   "files": [
     "/dist/audio-file-decoder.js",

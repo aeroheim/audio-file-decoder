@@ -14,9 +14,9 @@ export default {
     format: 'esm',
   },
   plugins: [
-    resolve({ extensions }),
+    resolve({ browser: true, extensions }),
     eslint(),
-    worker(),
+    worker({ targetPlatform: 'browser' }),
     babel({
       presets: [
         '@babel/preset-env',
