@@ -31,7 +31,7 @@ LIBMP3LAME_TARGET_NAME := libmp3lame
 LIBMP3LAME_TARGET      := $(foreach target, $(LIBMP3LAME_TARGET_NAME), $(FFMPEG_LIB_PATH)/$(target).a)
 
 # compiler flags
-CC            := emcc
+CC            := em++
 COMMON_CCFLAG := \
 	-Wall \
 	-O3 \
@@ -43,7 +43,7 @@ COMMON_CCFLAG := \
 	-s MODULARIZE=1 \
 	-s MALLOC=emmalloc \
 	-s ALLOW_MEMORY_GROWTH=1 \
-	-s EXTRA_EXPORTED_RUNTIME_METHODS=['FS'] \
+	-s EXPORTED_RUNTIME_METHODS=['FS'] \
 	--bind
 CCFLAG        := \
 	$(COMMON_CCFLAG) \
@@ -90,8 +90,8 @@ clean:
 # rules for dependencies
 deps: ffmpeg libopus libmp3lame
 
-ffmpeg: $(FFMPEG_TARGET) $(LIBOPUS_TARGET) $(LIBMP3LAME_TARGET)
-$(FFMPEG_TARGET) &:
+ffmpeg: $(FFMPEG_TARGET)
+$(FFMPEG_TARGET) &: $(LIBOPUS_TARGET) $(LIBMP3LAME_TARGET)
 	@ echo Compiling FFmpeg $(FFMPEG_VER)
 	@ cd $(FFMPEG_SRC_PATH) && \
 	EM_PKG_CONFIG_PATH="../../../$(FFMPEG_DIST_PATH)/lib/pkgconfig" emconfigure ./configure \

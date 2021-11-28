@@ -128,13 +128,15 @@ The build steps below have been tested on Ubuntu 20.04.1 LTS.
 
 First clone the repo, then navigate to the repo directory and run the following commands:
 ```bash
+# install necessary build tools
 sudo apt-get update -qq
-sudo apt-get install -y autoconf automake build-essential cmake git pkg-config wget
+sudo apt-get install -y autoconf automake build-essential cmake git pkg-config wget libtool
 
 # grab emscripten sdk which is needed to compile ffmpeg
+# built with emsdk 3.0.0 (upgrade at your own risk!)
 git clone https://github.com/emscripten-core/emsdk.git
-./emsdk/emsdk install latest
-./emsdk/emsdk activate latest
+./emsdk/emsdk install 3.0.0
+./emsdk/emsdk activate 3.0.0
 
 # set emscripten environment variables
 source ./emsdk/emsdk_env.sh
