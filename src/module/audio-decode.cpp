@@ -9,7 +9,7 @@
  * If the frame has multiple channels, samples will be averaged across all channels.
  */
 template <typename SampleType>
-void read_samples(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
+void read_samples(AVFrame* frame, std::vector<float>& dest, bool is_planar, bool multiChannel) {
   // use a midpoint offset between min/max for unsigned integer types
   SampleType min_numeric = std::numeric_limits<SampleType>::min();
   SampleType max_numeric = std::numeric_limits<SampleType>::max();
@@ -18,7 +18,7 @@ void read_samples(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
   for (int i = 0; i < frame->nb_samples; i++) {
     float sample = 0.0f;
     for (int j = 0; j < frame->channels; j++) {
-      sample += is_planar 
+      float channelSample = is_planar 
         ? (
           static_cast<float>(reinterpret_cast<SampleType*>(frame->extended_data[j])[i] - zero_sample) /
           static_cast<float>(max_numeric - zero_sample)
@@ -27,44 +27,60 @@ void read_samples(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
           static_cast<float>(reinterpret_cast<SampleType*>(frame->data[0])[i * frame->channels + j] - zero_sample) / 
           static_cast<float>(max_numeric - zero_sample)
         );
+
+      if (multiChannel) {
+        dest.push_back(channelSample);
+      } else {
+        sample += channelSample;
+      }
     }
-    sample /= frame->channels;
-    dest.push_back(sample);
+    if (!multiChannel) {
+      sample /= frame->channels;
+      dest.push_back(sample);
+    }
   }
 }
 
 template <>
-void read_samples<float>(AVFrame* frame, std::vector<float>& dest, bool is_planar) {
-  for (int i = 0; i < frame->nb_samples; i++) {
-    float sample = 0.0f;
-    for (int j = 0; j < frame->channels; j++) {
-      sample += is_planar 
-        ? reinterpret_cast<float*>(frame->extended_data[j])[i]
-        : reinterpret_cast<float*>(frame->data[0])[i * frame->channels + j];
+void read_samples<float>(AVFrame* frame, std::vector<float>& dest, bool is_planar, bool multiChannel) {
+    for (int i = 0; i < frame->nb_samples; i++) {
+      float sample = 0.0f;
+      for (int j = 0; j < frame->channels; j++) {
+        float channelSample = is_planar 
+          ? reinterpret_cast<float*>(frame->extended_data[j])[i]
+          : reinterpret_cast<float*>(frame->data[0])[i * frame->channels + j];
+
+        if (multiChannel) {
+          dest.push_back(channelSample);
+        } else {
+          sample += channelSample;
+        }
+      }
+      if (!multiChannel) {
+        sample /= frame->channels;
+        dest.push_back(sample);
+      }
     }
-    sample /= frame->channels;
-    dest.push_back(sample);
-  }
 }
 
-int read_samples(AVFrame* frame, AVSampleFormat format, std::vector<float>& dest) {
+int read_samples(AVFrame* frame, AVSampleFormat format, std::vector<float>& dest, bool multiChannel) {
   bool is_planar = av_sample_fmt_is_planar(format);
   switch (format) {
     case AV_SAMPLE_FMT_U8:
     case AV_SAMPLE_FMT_U8P:
-      read_samples<uint8_t>(frame, dest, is_planar);
+      read_samples<uint8_t>(frame, dest, is_planar, multiChannel);
       return 0;
     case AV_SAMPLE_FMT_S16:
     case AV_SAMPLE_FMT_S16P:
-      read_samples<int16_t>(frame, dest, is_planar);
+      read_samples<int16_t>(frame, dest, is_planar, multiChannel);
       return 0;
     case AV_SAMPLE_FMT_S32:
     case AV_SAMPLE_FMT_S32P:
-      read_samples<int32_t>(frame, dest, is_planar);
+      read_samples<int32_t>(frame, dest, is_planar, multiChannel);
       return 0;
     case AV_SAMPLE_FMT_FLT:
     case AV_SAMPLE_FMT_FLTP:
-      read_samples<float>(frame, dest, is_planar);
+      read_samples<float>(frame, dest, is_planar, multiChannel);
       return 0;
     default:
       return -1;
@@ -152,7 +168,7 @@ AudioProperties get_properties(const std::string& path) {
   return properties;
 }
 
-DecodeAudioResult decode_audio(const std::string& path, float start = 0, float duration = -1) {
+DecodeAudioResult decode_audio(const std::string& path, float start = 0, float duration = -1, DecodeAudioOptions options = {}) {
   av_log_set_level(AV_LOG_ERROR);
 
   Status status;
@@ -212,7 +228,7 @@ DecodeAudioResult decode_audio(const std::string& path, float start = 0, float d
         }
 
         // read samples from frame into result
-        read_samples(frame, codec->sample_fmt, samples);
+        read_samples(frame, codec->sample_fmt, samples, options.multiChannel);
         av_frame_unref(frame);
       }
 
@@ -246,6 +262,8 @@ EMSCRIPTEN_BINDINGS(my_module) {
   emscripten::value_object<DecodeAudioResult>("DecodeAudioResult")
     .field("status", &DecodeAudioResult::status)
     .field("samples", &DecodeAudioResult::samples);
+  emscripten::value_object<DecodeAudioOptions>("DecodeAudioOptions")
+    .field("multiChannel", &DecodeAudioOptions::multiChannel);
   emscripten::function("getProperties", &get_properties);
   emscripten::function("decodeAudio", &decode_audio);
   emscripten::register_vector<float>("vector<float>");

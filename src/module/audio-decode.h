@@ -29,5 +29,9 @@ struct DecodeAudioResult {
   std::vector<float> samples;
 };
 
+struct DecodeAudioOptions {
+  bool multiChannel;
+};
+
 AudioProperties get_properties(const std::string& path);
-DecodeAudioResult decode_audio(const std::string& path, float start, float duration);
+DecodeAudioResult decode_audio(const std::string& path, float start, float duration, DecodeAudioOptions options);

@@ -1,4 +1,5 @@
 import decodeAudioModule from '../wasm/decode-audio';
+import { DecodeAudioOptions } from './types';
 import { readBuffer } from './utils';
 
 /**
@@ -63,10 +64,15 @@ class AudioDecoder {
    * Decodes audio from the currently loaded file.
    * @param {number} start=0 - the timestamp in seconds to start decoding at.
    * @param {number} duration=-1 - the length in seconds to decode, or -1 to decode until the end of the file.
+   * @param {DecodeAudioOptions} options={} - additional options for decoding.
    * @returns Float32Array
    */
-  decodeAudioData(start = 0, duration = -1): Float32Array {
-    const { status: { status, error }, samples: vector } = this._module.decodeAudio(AudioDecoder.MEMFS_PATH, start, duration);
+  decodeAudioData(start = 0, duration = -1, options: DecodeAudioOptions = {}): Float32Array {
+    const decodeOptions = {
+      multiChannel: options.multiChannel ?? false,
+    };
+  
+    const { status: { status, error }, samples: vector } = this._module.decodeAudio(AudioDecoder.MEMFS_PATH, start, duration, decodeOptions);
     if (status < 0) {
       vector.delete();
       throw `decodeAudioData error: ${error}`;

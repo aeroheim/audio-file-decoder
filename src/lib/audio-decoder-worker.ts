@@ -1,5 +1,6 @@
 // @ts-ignore
 import DecodeAudioWorker from 'web-worker:../wasm/decode-audio-worker';
+import { DecodeAudioOptions } from './types';
 import { readBuffer } from './utils';
 
 enum AudioDecoderMessageType {
@@ -84,9 +85,10 @@ class AudioDecoderWorker {
    * Decodes audio asynchronously from the currently loaded file.
    * @param {number} start=0 - the timestamp in seconds to start decoding at.
    * @param {number} duration=-1 - the length in seconds to decode, or -1 to decode until the end of the file.
+   * @param {DecodeAudioOptions} options={} - additional options for decoding.
    * @returns Float32Array
    */
-  decodeAudioData(start = 0, duration = -1): Promise<Float32Array> {
+  decodeAudioData(start = 0, duration = -1, options: DecodeAudioOptions = {}): Promise<Float32Array> {
     return new Promise<Float32Array>((resolve, reject) => {
       // generate a unique id for the current decode request
       // this prevents race conditions when multiple decode requests are queued
@@ -103,7 +105,7 @@ class AudioDecoderWorker {
       };
 
       this._worker.addEventListener('message', onDecode);
-      this._worker.postMessage({ type: AudioDecoderMessageType.Decode, id: requestId, start, duration });
+      this._worker.postMessage({ type: AudioDecoderMessageType.Decode, id: requestId, start, duration, options });
     });
   }
 

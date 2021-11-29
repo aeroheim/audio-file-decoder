@@ -28,11 +28,14 @@ function initializeDecoder(messageType, wasm, fileData) {
     });
 }
 
-function decodeAudio(messageType, start = 0, duration = -1) {
+function decodeAudio(messageType, start = 0, duration = -1, options = {}) {
   if (!_decoder) {
     throwError(messageType, 'decoder is not initialized');
   }
-  const { status: { status, error }, samples: vector } = _decoder.decodeAudio(_decoder_memfs_path, start, duration);
+  const decodeOptions = {
+    multiChannel: options.multiChannel ?? false,
+  };
+  const { status: { status, error }, samples: vector } = _decoder.decodeAudio(_decoder_memfs_path, start, duration, decodeOptions);
   if (status < 0) {
     vector.delete();
     throw `decodeAudioData error: ${error}`;
@@ -55,9 +58,9 @@ onmessage = function(e) {
         .then(({ sampleRate, channelCount, encoding, duration }) => postMessage({ type, sampleRate, channelCount, encoding, duration }));
       break;
     case 'decode':
-      const { id, start, duration } = e.data;
+      const { id, start, duration, options } = e.data;
       try {
-        const samples = decodeAudio(type, start, duration);
+        const samples = decodeAudio(type, start, duration, options);
         postMessage({ type, id, samples: samples.buffer }, [ samples.buffer ])
       } catch (err) {
         // need to return the id of the failed decode request, so use custom message instead of throwing error

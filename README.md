@@ -30,7 +30,7 @@ npm install --save audio-file-decoder
 
 ### Synchronous Decoding
 An example of synchronous audio file decoding in ES6:
-```js
+```ts
 import { getAudioDecoder } from 'audio-file-decoder';
 import DecodeAudioWasm from 'audio-file-decoder/decode-audio.wasm'; // path to wasm asset
 
@@ -56,6 +56,12 @@ getAudioDecoder(DecodeAudioWasm, fileOrArrayBuffer)
     // decode from 30 seconds for a duration of 60 seconds
     samples = decoder.decodeAudioData(30, 60);
 
+    // decode with options
+    const options: DecodeAudioOptions = {
+      multiChannel: true,
+    };
+    samples = decoder.decodeAudioData(0, -1, options);
+
     // ALWAYS dispose once finished to free resources
     decoder.dispose();
   });
@@ -63,7 +69,7 @@ getAudioDecoder(DecodeAudioWasm, fileOrArrayBuffer)
 
 ### Asynchronous Decoding
 An example of asynchronous audio file decoding in ES6:
-```js
+```ts
 import { getAudioDecoderWorker } from 'audio-file-decoder';
 import DecodeAudioWasm from 'audio-file-decoder/decode-audio.wasm'; // path to wasm asset
 
@@ -80,8 +86,12 @@ getAudioDecoderWorker(DecodeAudioWasm, fileOrArrayBuffer)
 
     audioDecoder = decoder;
 
-    // decode from 15 seconds for a duration of 45 seconds
-    return decoder.getAudioData(15, 45);
+    const options: DecodeAudioOptions = {
+      multiChannel: false,
+    };
+
+    // decode from 15 seconds for a duration of 45 seconds, with options
+    return decoder.getAudioData(15, 45, options);
   })
   .then(samples => {
     // samples are returned as a Float32Array
@@ -92,12 +102,25 @@ getAudioDecoderWorker(DecodeAudioWasm, fileOrArrayBuffer)
   });
 ```
 
+### Additional Options
+You can pass additional options when decoding audio data. Currently supported options are listed below:
+```ts
+interface DecodeAudioOptions {
+  // whether to decode multiple channels. defaults to false.
+  // if set to true, the resulting array will contain samples interleaved from each channel.
+  // - using the channel count, samples can be accessed using samples[sample * channelCount + channel]
+  // if set to false, the resulting will contain downmixed samples averaged from each channel.
+  // - samples can be accessed using samples[sample]
+  multiChannel?: boolean;
+}
+```
+
 ### Importing WASM Assets
 
 The `getAudioDecoder` and `getAudioDecoderWorker` factory functions expect relative paths (from your app's origin) to the wasm file or inlined versions of the wasm file provided by the library. You'll need to include this wasm file as an asset in your application, either by using a plugin/loader if using module bundlers (e.g `file-loader` for webpack) or by copying this file over in your build process.
 
 If using a module bundler with appropriate plugins/loaders, you can simply import the required wasm asset like below:
-```js
+```ts
 import { getAudioDecoder, getAudioDecoderWorker } from 'audio-file-decoder';
 import DecodeAudioWasm from 'audio-file-decoder/decode-audio.wasm';
 
@@ -139,6 +162,7 @@ git clone https://github.com/emscripten-core/emsdk.git
 ./emsdk/emsdk activate 3.0.0
 
 # set emscripten environment variables
+# this needs to be invoked when you start a new terminal
 source ./emsdk/emsdk_env.sh
 
 # install npm deps, sync/download ffmpeg + deps, then build ffmpeg
